@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	// Uncomment this block to pass the first stage
 	 "net"
@@ -11,12 +12,60 @@ import (
 
 const CRLF string = "\r\n"
 
-func buildHttpResponse(status int, reason string, headers []any) string {
+func buildHttpResponse(status uint, reason string, headers Headers) string {
 	if len(headers) > 0 {
 		log.Panic("Headers are not yet supported")
 	}
 
 	return fmt.Sprintf("HTTP/1.1 %d %s\r\n\r\n", status, reason)
+}
+
+type Headers map[string]string
+
+type HttpRequest struct {
+	method string
+	url string
+	body string
+	httpVersion string
+	headers Headers
+}
+
+func HttpRequestFromBytes(bytes []byte) HttpRequest {
+	x := string(bytes)
+	parts := strings.Split(x, CRLF)
+	headerParts := strings.Split(parts[0], " ")
+
+	headers := make(Headers)
+
+	for _, line := range parts[1:] {
+		line = strings.TrimSuffix(line, CRLF)
+
+		if line == "" {
+			break
+		}
+
+		parts := strings.Split(line, " ")
+		headers[parts[0]] = strings.Trim(parts[1], " ")
+	}
+
+	return HttpRequest{
+		method: headerParts[0],
+		url: headerParts[1],
+		body:  parts[2 + len(headers)],
+		httpVersion: strings.TrimPrefix(headerParts[2], "HTTP/"),
+		headers: headers,
+	}
+}
+
+func reasonForCode(code uint) string {
+	switch code {
+	case 200:
+		return "OK"
+	case 404:
+		return "Not Found"
+	default:
+		panic("Unknown code")
+	}
 }
 
 func main() {
@@ -32,12 +81,33 @@ func main() {
 	 }
 
 	 conn, err := l.Accept()
+
 	 if err != nil {
 	 	fmt.Println("Error accepting connection: ", err.Error())
 	 	os.Exit(1)
 	 }
 
-	_, err = conn.Write([]byte(buildHttpResponse(200, "OK", make([]any, 0))))
+	 buffer := make([]byte, 1024)
+	 readBytes, err := conn.Read(buffer)
+
+	 if err != nil {
+		 fmt.Println("Failed to read bytes")
+		 os.Exit(1)
+	 }
+
+	 request := HttpRequestFromBytes(buffer[:readBytes])
+	 fmt.Println(request)
+
+	 var status uint
+
+	switch request.url {
+	case "/":
+		status = 200
+	default:
+		status = 404
+	}
+
+	_, err = conn.Write([]byte(buildHttpResponse(status, reasonForCode(status), make(Headers))))
 	if err != nil {
 		fmt.Println("failed to send data")
 		os.Exit(1)
