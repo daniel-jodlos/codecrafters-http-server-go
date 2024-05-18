@@ -154,16 +154,15 @@ func handleConnection(conn net.Conn) {
 
 		if err != nil {
 			response = NewHttpResponse()
+		} else {
+			defer func(file *os.File) {
+				err := file.Close()
+				if err != nil {
+					fmt.Println("Failed to close the file")
+				}
+			}(file)
+			response = NewHttpResponseWithFile(file)
 		}
-
-		defer func(file *os.File) {
-			err := file.Close()
-			if err != nil {
-				fmt.Println("Failed to close the file")
-			}
-		}(file)
-		response = NewHttpResponseWithFile(file)
-
 	}
 
 
