@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"strings"
 
+	"flag"
 	// Uncomment this block to pass the first stage
 	"net"
 	"os"
 )
+
+var dirFlag = flag.String("directory", "dupa", "provide the directory path")
 
 const CRLF string = "\r\n"
 
@@ -77,13 +80,13 @@ func reasonForCode(code uint) string {
 }
 
 type HttpResponse struct {
-	body    string
+	body    []byte
 	headers Headers
 	status  uint
 }
 
 func NewHttpResponse() HttpResponse {
-	return HttpResponse{status: 404, body: "", headers: make(Headers)}
+	return HttpResponse{status: 404, body: make([]byte, 0), headers: make(Headers)}
 }
 
 func NewHttpResponseWithBody(body string) HttpResponse {
@@ -91,7 +94,30 @@ func NewHttpResponseWithBody(body string) HttpResponse {
 	response.status = 200
 	response.headers["Content-Type"] = "text/plain"
 	response.headers["Content-Length"] = fmt.Sprintf("%d", len(body))
-	response.body = body
+	response.body = []byte(body)
+	return response
+}
+
+func NewHttpResponseWithFile(file *os.File) HttpResponse {
+	response := NewHttpResponse()
+	response.status = 200
+	response.headers["Content-Type"] = "application/octet-stream"
+	fInfo, err := file.Stat()
+
+	if err != nil {
+		fmt.Println("failed to stat the file")
+		os.Exit(0)
+	}
+
+	response.body = make([]byte, fInfo.Size())
+	read, err := file.Read(response.body)
+	response.headers["Content-Length"] = fmt.Sprintf("%d", read)
+
+	if err != nil {
+		fmt.Println("Failed to load file")
+		os.Exit(1)
+	}
+
 	return response
 }
 
@@ -112,20 +138,34 @@ func handleConnection(conn net.Conn) {
 	request := HttpRequestFromBytes(buffer[:readBytes])
 	fmt.Println(request)
 
-	var response HttpResponse = NewHttpResponse()
+	var response = NewHttpResponse()
 
 	switch {
 	case request.url == "/":
 		response.status = 200
 	case request.url == "/user-agent":
-		body := request.headers["user-agent"]
+		body := request.headers.get("User-Agent")
 		response = NewHttpResponseWithBody(body)
 	case strings.HasPrefix(request.url, "/echo/"):
 		body := strings.TrimPrefix(request.url, "/echo/")
 		response = NewHttpResponseWithBody(body)
+	case strings.HasPrefix(request.url, "/files/"):
+		file, err := os.Open(*dirFlag + "/" + strings.TrimPrefix(request.url, "/files/"))
+
+		if err != nil {
+			response = NewHttpResponse()
+		}
+
+		defer func(file *os.File) {
+			err := file.Close()
+			if err != nil {
+				fmt.Println("Failed to close the file")
+			}
+		}(file)
+		response = NewHttpResponseWithFile(file)
+
 	}
 
-	fmt.Println(response)
 
 	_, err = conn.Write([]byte(response.toString()))
 	if err != nil {
@@ -135,6 +175,8 @@ func handleConnection(conn net.Conn) {
 }
 
 func main() {
+	flag.Parse()
+	fmt.Println(*dirFlag)
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	fmt.Println("Logs from your program will appear here!")
 
