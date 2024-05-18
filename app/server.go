@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	// Uncomment this block to pass the first stage
@@ -12,15 +11,21 @@ import (
 
 const CRLF string = "\r\n"
 
-func buildHttpResponse(status uint, reason string, headers Headers) string {
-	if len(headers) > 0 {
-		log.Panic("Headers are not yet supported")
-	}
-
-	return fmt.Sprintf("HTTP/1.1 %d %s\r\n\r\n", status, reason)
+func buildHttpResponse(status uint, reason string, headers Headers, body string) string {
+	return fmt.Sprintf("HTTP/1.1 %d %s\r\n%s\r\n%s", status, reason, headers.toString(), body)
 }
 
 type Headers map[string]string
+
+func (h Headers) toString() string {
+	result := ""
+
+	for k, v := range h {
+		result += fmt.Sprintf("%s: %s\r\n", k, v)
+	}
+
+	return result
+}
 
 type HttpRequest struct {
 	method string
@@ -98,16 +103,22 @@ func main() {
 	 request := HttpRequestFromBytes(buffer[:readBytes])
 	 fmt.Println(request)
 
-	 var status uint
+	 var status uint = 200
+	 var body string = ""
+	 headers := make(Headers)
 
-	switch request.url {
-	case "/":
+	switch {
+	case request.url == "/":
 		status = 200
+	case strings.HasPrefix(request.url, "/echo/"):
+		body = strings.TrimPrefix(request.url, "/echo/")
+		headers["Content-Type"] = "text/plain"
+		headers["Content-Length"] = fmt.Sprintf("%d", len(body))
 	default:
 		status = 404
 	}
 
-	_, err = conn.Write([]byte(buildHttpResponse(status, reasonForCode(status), make(Headers))))
+	_, err = conn.Write([]byte(buildHttpResponse(status, reasonForCode(status), headers, body)))
 	if err != nil {
 		fmt.Println("failed to send data")
 		os.Exit(1)
