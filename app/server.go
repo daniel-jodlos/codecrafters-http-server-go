@@ -5,15 +5,11 @@ import (
 	"strings"
 
 	// Uncomment this block to pass the first stage
-	 "net"
-	 "os"
+	"net"
+	"os"
 )
 
 const CRLF string = "\r\n"
-
-func buildHttpResponse(status uint, reason string, headers Headers, body string) string {
-	return fmt.Sprintf("HTTP/1.1 %d %s\r\n%s\r\n%s", status, reason, headers.toString(), body)
-}
 
 type Headers map[string]string
 
@@ -32,11 +28,11 @@ func (h *Headers) get(key string) string {
 }
 
 type HttpRequest struct {
-	method string
-	url string
-	body string
+	method      string
+	url         string
+	body        string
 	httpVersion string
-	headers Headers
+	headers     Headers
 }
 
 func HttpRequestFromBytes(bytes []byte) HttpRequest {
@@ -59,11 +55,11 @@ func HttpRequestFromBytes(bytes []byte) HttpRequest {
 	}
 
 	return HttpRequest{
-		method: headerParts[0],
-		url: headerParts[1],
-		body:  parts[2 + len(headers)],
+		method:      headerParts[0],
+		url:         headerParts[1],
+		body:        parts[2+len(headers)],
 		httpVersion: strings.TrimPrefix(headerParts[2], "HTTP/"),
-		headers: headers,
+		headers:     headers,
 	}
 }
 
@@ -78,57 +74,74 @@ func reasonForCode(code uint) string {
 	}
 }
 
+type HttpResponse struct {
+	body    string
+	headers Headers
+	status  uint
+}
+
+func NewHttpResponse() HttpResponse {
+	return HttpResponse{status: 404, body: "", headers: make(Headers)}
+}
+
+func NewHttpResponseWithBody(body string) HttpResponse {
+	response := NewHttpResponse()
+	response.status = 200
+	response.headers["Content-Type"] = "text/plain"
+	response.headers["Content-Length"] = fmt.Sprintf("%d", len(body))
+	response.body = body
+	return response
+}
+
+func (h *HttpResponse) toString() string {
+	return fmt.Sprintf("HTTP/1.1 %d %s\r\n%s\r\n%s", h.status, reasonForCode(h.status), h.headers.toString(), h.body)
+
+}
+
 func main() {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	fmt.Println("Logs from your program will appear here!")
 
 	// Uncomment this block to pass the first stage
 	//
-	 l, err := net.Listen("tcp", "0.0.0.0:4221")
-	 if err != nil {
-	 	fmt.Println("Failed to bind to port 4221")
-	 	os.Exit(1)
-	 }
+	l, err := net.Listen("tcp", "0.0.0.0:4221")
+	if err != nil {
+		fmt.Println("Failed to bind to port 4221")
+		os.Exit(1)
+	}
 
-	 conn, err := l.Accept()
+	conn, err := l.Accept()
 
-	 if err != nil {
-	 	fmt.Println("Error accepting connection: ", err.Error())
-	 	os.Exit(1)
-	 }
+	if err != nil {
+		fmt.Println("Error accepting connection: ", err.Error())
+		os.Exit(1)
+	}
 
-	 buffer := make([]byte, 1024)
-	 readBytes, err := conn.Read(buffer)
+	buffer := make([]byte, 1024)
+	readBytes, err := conn.Read(buffer)
 
-	 if err != nil {
-		 fmt.Println("Failed to read bytes")
-		 os.Exit(1)
-	 }
+	if err != nil {
+		fmt.Println("Failed to read bytes")
+		os.Exit(1)
+	}
 
-	 request := HttpRequestFromBytes(buffer[:readBytes])
-	 fmt.Println(request)
+	request := HttpRequestFromBytes(buffer[:readBytes])
+	fmt.Println(request)
 
-	 var status uint = 200
-	 var body string = ""
-	 headers := make(Headers)
+	var response HttpResponse = NewHttpResponse()
 
 	switch {
 	case request.url == "/":
-		status = 200
+		response.status = 200
 	case request.url == "/user-agent":
-		status = 200
-		body = request.headers.get("User-Agent")
-		headers["Content-Type"] = "text/plain"
-		headers["Content-Length"] = fmt.Sprintf("%d", len(body))
+		body := request.headers.get("User-Agent")
+		response = NewHttpResponseWithBody(body)
 	case strings.HasPrefix(request.url, "/echo/"):
-		body = strings.TrimPrefix(request.url, "/echo/")
-		headers["Content-Type"] = "text/plain"
-		headers["Content-Length"] = fmt.Sprintf("%d", len(body))
-	default:
-		status = 404
+		body := strings.TrimPrefix(request.url, "/echo/")
+		response = NewHttpResponseWithBody(body)
 	}
 
-	_, err = conn.Write([]byte(buildHttpResponse(status, reasonForCode(status), headers, body)))
+	_, err = conn.Write([]byte(response.toString()))
 	if err != nil {
 		fmt.Println("failed to send data")
 		os.Exit(1)
