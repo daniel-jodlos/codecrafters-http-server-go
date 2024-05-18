@@ -10,7 +10,7 @@ import (
 	"os"
 )
 
-var dirFlag = flag.String("directory", "dupa", "provide the directory path")
+var dirFlag = flag.String("directory", "example", "provide the directory path")
 
 const CRLF string = "\r\n"
 
@@ -138,7 +138,6 @@ func handleConnection(conn net.Conn) {
 	}
 
 	request := HttpRequestFromBytes(buffer[:readBytes])
-	fmt.Println(request)
 
 	var response = NewHttpResponse()
 
@@ -192,7 +191,6 @@ func handleConnection(conn net.Conn) {
 
 func main() {
 	flag.Parse()
-	fmt.Println(*dirFlag)
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	fmt.Println("Logs from your program will appear here!")
 
