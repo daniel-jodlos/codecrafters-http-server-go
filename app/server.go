@@ -74,8 +74,10 @@ func reasonForCode(code uint) string {
 		return "OK"
 	case 404:
 		return "Not Found"
+	case 201:
+		return "Created"
 	default:
-		panic("Unknown code")
+		return "OK"
 	}
 }
 
@@ -149,7 +151,7 @@ func handleConnection(conn net.Conn) {
 	case strings.HasPrefix(request.url, "/echo/"):
 		body := strings.TrimPrefix(request.url, "/echo/")
 		response = NewHttpResponseWithBody(body)
-	case strings.HasPrefix(request.url, "/files/"):
+	case request.method == "GET" && strings.HasPrefix(request.url, "/files/"):
 		file, err := os.Open(*dirFlag + "/" + strings.TrimPrefix(request.url, "/files/"))
 
 		if err != nil {
@@ -163,6 +165,21 @@ func handleConnection(conn net.Conn) {
 			}(file)
 			response = NewHttpResponseWithFile(file)
 		}
+		case request.method == "POST" && strings.HasPrefix(request.url, "/files/"):
+			response.status = 201
+			file, err := os.Create(*dirFlag + "/" + strings.TrimPrefix(request.url, "/files/"))
+
+			if err != nil {
+				fmt.Println("Failed to open file")
+				response.status = 500
+			} else {
+				_, err = file.Write([]byte(request.body))
+
+				if err != nil {
+					fmt.Println("Failed to save to the file")
+					response.status =500
+				}
+			}
 	}
 
 
