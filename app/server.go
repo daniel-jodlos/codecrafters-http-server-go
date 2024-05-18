@@ -17,14 +17,18 @@ func buildHttpResponse(status uint, reason string, headers Headers, body string)
 
 type Headers map[string]string
 
-func (h Headers) toString() string {
+func (h *Headers) toString() string {
 	result := ""
 
-	for k, v := range h {
+	for k, v := range *h {
 		result += fmt.Sprintf("%s: %s\r\n", k, v)
 	}
 
 	return result
+}
+
+func (h *Headers) get(key string) string {
+	return (*h)[strings.ToLower(key)]
 }
 
 type HttpRequest struct {
@@ -50,7 +54,8 @@ func HttpRequestFromBytes(bytes []byte) HttpRequest {
 		}
 
 		parts := strings.Split(line, " ")
-		headers[parts[0]] = strings.Trim(parts[1], " ")
+		key := strings.ToLower(parts[0])
+		headers[key] = strings.Trim(parts[1], " ")
 	}
 
 	return HttpRequest{
@@ -110,6 +115,11 @@ func main() {
 	switch {
 	case request.url == "/":
 		status = 200
+	case request.url == "/user-agent":
+		status = 200
+		body = request.headers.get("User-Agent")
+		headers["Content-Type"] = "text/plain"
+		headers["Content-Length"] = fmt.Sprintf("%d", len(body))
 	case strings.HasPrefix(request.url, "/echo/"):
 		body = strings.TrimPrefix(request.url, "/echo/")
 		headers["Content-Type"] = "text/plain"
