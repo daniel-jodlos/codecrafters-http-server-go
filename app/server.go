@@ -24,7 +24,8 @@ func (h *Headers) toString() string {
 }
 
 func (h *Headers) get(key string) string {
-	return (*h)[strings.ToLower(key)]
+	key = strings.ToLower(key)
+	return (*h)[key]
 }
 
 type HttpRequest struct {
@@ -51,6 +52,7 @@ func HttpRequestFromBytes(bytes []byte) HttpRequest {
 
 		parts := strings.Split(line, " ")
 		key := strings.ToLower(parts[0])
+		key = strings.TrimSuffix(key, ":")
 		headers[key] = strings.Trim(parts[1], " ")
 	}
 
@@ -134,12 +136,14 @@ func main() {
 	case request.url == "/":
 		response.status = 200
 	case request.url == "/user-agent":
-		body := request.headers.get("User-Agent")
+		body := request.headers["user-agent"]
 		response = NewHttpResponseWithBody(body)
 	case strings.HasPrefix(request.url, "/echo/"):
 		body := strings.TrimPrefix(request.url, "/echo/")
 		response = NewHttpResponseWithBody(body)
 	}
+
+	fmt.Println(response)
 
 	_, err = conn.Write([]byte(response.toString()))
 	if err != nil {
