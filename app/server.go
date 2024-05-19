@@ -190,7 +190,7 @@ func handleConnection(conn net.Conn) {
 		}
 	}
 
-	if encoding, ok := request.headers.get("Content-Encoding"); ok && isSupportedEncoding(encoding) {
+	if encoding, ok := request.headers.get("Accept-Encoding"); ok && isSupportedEncoding(encoding) {
 		response.setContentEncoding(encoding)
 	}
 
