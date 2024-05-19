@@ -6,6 +6,8 @@ import (
 
 	"flag"
 	// Uncomment this block to pass the first stage
+	"bytes"
+	"compress/gzip"
 	"net"
 	"os"
 )
@@ -154,6 +156,17 @@ func (h *HttpResponse) toString() string {
 
 func (h *HttpResponse) setContentEncoding(encoding string) {
 	h.headers["Content-Encoding"] = encoding
+
+	if encoding == "gzip" {
+		buf := &bytes.Buffer{}
+		writer := gzip.NewWriter(buf)
+		writer.Write(h.body)
+		writer.Close()
+		h.body = buf.Bytes()
+		h.headers["Content-Length"] = fmt.Sprintf("%d", len(h.body))
+	} else {
+		panic("Unsupported encoding")
+	}
 }
 
 func isSupportedEncoding(encoding string) bool {
