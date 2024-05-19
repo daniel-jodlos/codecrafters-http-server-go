@@ -32,6 +32,26 @@ func (h *Headers) get(key string) (string, bool) {
 	return value, ok
 }
 
+type RequestHeaders Headers
+
+func (h *Headers) getAcceptedEncoding() (string, bool) {
+	header, ok := h.get("Accepted-Encoding")
+
+	if !ok {
+		return "", false
+	}
+
+	encodings := strings.Split(header, ", ")
+
+	for _, encoding := range encodings {
+		if isSupportedEncoding(encoding) {
+			return encoding, true
+		}
+	}
+
+	return "", false
+}
+
 type HttpRequest struct {
 	method      string
 	url         string
