@@ -70,13 +70,14 @@ func HttpRequestFromBytes(bytes []byte) HttpRequest {
 	headers := make(Headers)
 
 	for _, line := range parts[1:] {
+		fmt.Println(line)
 		line = strings.TrimSuffix(line, CRLF)
 
 		if line == "" {
 			break
 		}
 
-		parts := strings.Split(line, " ")
+		parts := strings.SplitN(line, " ", 2)
 		key := strings.ToLower(parts[0])
 		key = strings.TrimSuffix(key, ":")
 		headers[key] = strings.Trim(parts[1], " ")
