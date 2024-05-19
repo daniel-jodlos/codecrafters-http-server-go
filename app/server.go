@@ -35,7 +35,8 @@ func (h *Headers) get(key string) (string, bool) {
 type RequestHeaders Headers
 
 func (h *Headers) getAcceptedEncoding() (string, bool) {
-	header, ok := h.get("Accepted-Encoding")
+	fmt.Println(*h)
+	header, ok := h.get("Accept-Encoding")
 
 	if !ok {
 		return "", false
@@ -44,6 +45,7 @@ func (h *Headers) getAcceptedEncoding() (string, bool) {
 	encodings := strings.Split(header, ", ")
 
 	for _, encoding := range encodings {
+		fmt.Println(encoding)
 		if isSupportedEncoding(encoding) {
 			return encoding, true
 		}
