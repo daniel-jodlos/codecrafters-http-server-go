@@ -42,10 +42,10 @@ func (h *Headers) getAcceptedEncoding() (string, bool) {
 		return "", false
 	}
 
-	encodings := strings.Split(header, ", ")
+	encodings := strings.Split(header, ",")
 
 	for _, encoding := range encodings {
-		fmt.Println(encoding)
+		encoding = strings.Trim(encoding, " ")
 		if isSupportedEncoding(encoding) {
 			return encoding, true
 		}
