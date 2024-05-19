@@ -26,9 +26,10 @@ func (h *Headers) toString() string {
 	return result
 }
 
-func (h *Headers) get(key string) string {
+func (h *Headers) get(key string) (string, bool) {
 	key = strings.ToLower(key)
-	return (*h)[key]
+	value, ok := (*h)[key]
+	return value, ok
 }
 
 type HttpRequest struct {
@@ -128,6 +129,14 @@ func (h *HttpResponse) toString() string {
 
 }
 
+func (h *HttpResponse) setContentEncoding(encoding string) {
+	h.headers["Content-Encoding"] = encoding
+}
+
+func isSupportedEncoding(encoding string) bool {
+	return encoding == "gzip"
+}
+
 func handleConnection(conn net.Conn) {
 	buffer := make([]byte, 1024)
 	readBytes, err := conn.Read(buffer)
@@ -164,23 +173,26 @@ func handleConnection(conn net.Conn) {
 			}(file)
 			response = NewHttpResponseWithFile(file)
 		}
-		case request.method == "POST" && strings.HasPrefix(request.url, "/files/"):
-			response.status = 201
-			file, err := os.Create(*dirFlag + "/" + strings.TrimPrefix(request.url, "/files/"))
+	case request.method == "POST" && strings.HasPrefix(request.url, "/files/"):
+		response.status = 201
+		file, err := os.Create(*dirFlag + "/" + strings.TrimPrefix(request.url, "/files/"))
+
+		if err != nil {
+			fmt.Println("Failed to open file")
+			response.status = 500
+		} else {
+			_, err = file.Write([]byte(request.body))
 
 			if err != nil {
-				fmt.Println("Failed to open file")
+				fmt.Println("Failed to save to the file")
 				response.status = 500
-			} else {
-				_, err = file.Write([]byte(request.body))
-
-				if err != nil {
-					fmt.Println("Failed to save to the file")
-					response.status =500
-				}
 			}
+		}
 	}
 
+	if encoding, ok := request.headers.get("Content-Encoding"); ok && isSupportedEncoding(encoding) {
+		response.setContentEncoding(encoding)
+	}
 
 	_, err = conn.Write([]byte(response.toString()))
 	if err != nil {
