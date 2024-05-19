@@ -154,7 +154,7 @@ func handleConnection(conn net.Conn) {
 	case request.url == "/":
 		response.status = 200
 	case request.url == "/user-agent":
-		body := request.headers.get("User-Agent")
+		body, _ := request.headers.get("User-Agent")
 		response = NewHttpResponseWithBody(body)
 	case strings.HasPrefix(request.url, "/echo/"):
 		body := strings.TrimPrefix(request.url, "/echo/")
